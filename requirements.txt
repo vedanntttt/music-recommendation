@@ -7,3 +7,4 @@ deepface==0.0.79
 tf-keras==2.15.0
 numpy<2.0.0
 emoji<2.0.0
+gunicorn==21.2.0
