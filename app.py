@@ -98,32 +98,39 @@ def detect_emotion():
                 if score > 0:
                     emotion_scores[emotion_key] = score
             
-            # Try text2emotion first
-            text_emotions = te.get_emotion(data['text'])
-            
-            # Combine both methods
-            if text_emotions and any(text_emotions.values()):
-                # Get emotion from text2emotion
-                te_emotion = max(text_emotions, key=text_emotions.get)
-                te_score = text_emotions[te_emotion]
-                
-                # If keyword detection found something, use the one with higher confidence
-                if emotion_scores:
-                    keyword_emotion = max(emotion_scores, key=emotion_scores.get)
-                    keyword_score = emotion_scores[keyword_emotion]
+            # Try text2emotion as backup only
+            try:
+                text_emotions = te.get_emotion(data['text'])
+                if text_emotions and sum(text_emotions.values()) > 0:
+                    te_emotion = max(text_emotions, key=text_emotions.get)
+                    te_score = text_emotions[te_emotion]
                     
-                    # Prefer keyword detection if it has strong matches
-                    if keyword_score >= 2 or (keyword_score > 0 and te_score < 0.3):
-                        emotion = keyword_emotion
+                    # If keyword detection found something, prefer it
+                    if emotion_scores:
+                        keyword_emotion = max(emotion_scores, key=emotion_scores.get)
+                        keyword_score = emotion_scores[keyword_emotion]
+                        
+                        # Prefer keyword detection if it has matches
+                        if keyword_score >= 1:
+                            emotion = keyword_emotion
+                        else:
+                            emotion = te_emotion
                     else:
                         emotion = te_emotion
                 else:
-                    emotion = te_emotion
+                    # text2emotion returned nothing, use keyword detection
+                    if emotion_scores:
+                        emotion = max(emotion_scores, key=emotion_scores.get)
+                    else:
+                        emotion = None
+            except:
+                # text2emotion failed, fallback to keyword detection only
+                if emotion_scores:
+                    emotion = max(emotion_scores, key=emotion_scores.get)
+                else:
+                    emotion = None
                     
-                detection_method = 'text'
-            elif emotion_scores:
-                # Fallback to keyword detection
-                emotion = max(emotion_scores, key=emotion_scores.get)
+            if emotion:
                 detection_method = 'text'
             else:
                 return jsonify({'error': 'Could not detect emotion from text. Please provide more descriptive text about your feelings.'}), 400
